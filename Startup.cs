@@ -9,6 +9,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json.Serialization;
 using Microsoft.AspNetCore.Mvc.Formatters;
 using Microsoft.Extensions.Logging;
+using NLog.Extensions.Logging;
+using CityInfo.API.Services;
 
 namespace CityInfo.API
 {
@@ -20,9 +22,9 @@ namespace CityInfo.API
         {
             services.AddMvc();
 
-                // This will add Xml representation as a response option
-                //.AddMvcOptions(o => o.OutputFormatters.Add(
-                //    new XmlDataContractSerializerOutputFormatter()));
+            // This will add Xml representation as a response option
+            //.AddMvcOptions(o => o.OutputFormatters.Add(
+            //    new XmlDataContractSerializerOutputFormatter()));
 
             // If you want different serialization in response
             //    .AddJsonOptions(o => {
@@ -32,6 +34,8 @@ namespace CityInfo.API
             //            castedResolver.NamingStrategy = null;
             //        }
             //});
+
+            services.AddTransient<IMailService, LocalMailService>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -40,6 +44,8 @@ namespace CityInfo.API
             loggerFactory.AddConsole();
 
             loggerFactory.AddDebug();
+
+            loggerFactory.AddNLog();
 
             if (env.IsDevelopment())
             {
