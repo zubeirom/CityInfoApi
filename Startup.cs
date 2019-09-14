@@ -14,6 +14,7 @@ using CityInfo.API.Services;
 using CityInfo.API.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using AutoMapper;
 
 namespace CityInfo.API
 {
@@ -48,6 +49,8 @@ namespace CityInfo.API
 
             services.AddScoped<ICityInfoRepository, CityInfoRepository>();
 
+            services.AddAutoMapper(typeof(Startup));
+
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -71,6 +74,8 @@ namespace CityInfo.API
             cityInfoContext.EnsureSeedDataForContext();
 
             app.UseStatusCodePages();
+
+
 
             app.UseMvc();
 
