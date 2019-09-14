@@ -13,11 +13,19 @@ using NLog.Extensions.Logging;
 using CityInfo.API.Services;
 using CityInfo.API.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 
 namespace CityInfo.API
 {
     public class Startup
     {
+
+        public static IConfiguration Configuration { get; private set; }
+
+        public Startup(IConfiguration configuration)
+        {
+            Configuration = configuration;
+        }
         // This method gets called by the runtime. Use this method to add services to the container.
         // For more information on how to configure your application, visit https://go.microsoft.com/fwlink/?LinkID=398940
         public void ConfigureServices(IServiceCollection services)
@@ -35,13 +43,13 @@ namespace CityInfo.API
             //        }
             //});
 
-            var connectionString = @"Server=(localdb)\mssqllocaldb;Database=CityInfoDB;Trusted_Connection=True;";
+            var connectionString = Startup.Configuration["connectionStrings:cityInfoDBConnectionString"];
             services.AddDbContext<CityInfoContext>(o => o.UseSqlServer(connectionString));
 
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory)
+        public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory, CityInfoContext cityInfoContext)
         {
             loggerFactory.AddConsole();
 
@@ -57,6 +65,8 @@ namespace CityInfo.API
             {
                 app.UseExceptionHandler();
             }
+
+            cityInfoContext.EnsureSeedDataForContext();
 
             app.UseStatusCodePages();
 
