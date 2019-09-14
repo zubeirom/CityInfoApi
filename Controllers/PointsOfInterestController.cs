@@ -31,7 +31,6 @@ namespace CityInfo.API.Controllers
         {
             try
             {
-                // var city = CitiesDataStore.Current.Cities.FirstOrDefault(c => c.Id == cityId);
 
                 if(!_cityInfoRepository.CityExists(cityId))
                 {
@@ -49,7 +48,6 @@ namespace CityInfo.API.Controllers
             }
             catch(Exception e)
             {
-                _logger.LogCritical($"LOGGER CRITICAL: Exception while getting points of interest for city with id {cityId}.", e);
                 return StatusCode(500, "A problem happened while handling request.");
             }
 
@@ -167,46 +165,46 @@ namespace CityInfo.API.Controllers
                 return BadRequest();
             }
 
-            var city = CitiesDataStore.Current.Cities.FirstOrDefault(c => c.Id == cityId);
-            if (city == null)
+            if (!_cityInfoRepository.CityExists(cityId))
             {
                 return NotFound();
             }
 
-            var pointOfInterestFromStore = city.PointsOfInterest.FirstOrDefault(p => p.Id == id);
-
-            if (pointOfInterestFromStore == null)
+            var poiEntity = _cityInfoRepository.GetPointOfInterestForCity(cityId, id);
+            if (poiEntity == null)
             {
                 return NotFound();
             }
 
-            var pointOfInterestToPatch = new PointOfInterestForUpdateDto()
-            {
-                Name = pointOfInterestFromStore.Name,
-                Description = pointOfInterestFromStore.Description
-            };
+            var poiPatch = _mapper.Map<PointOfInterestForUpdateDto>(poiEntity);
 
-            patchDoc.ApplyTo(pointOfInterestToPatch, ModelState);
+            
+
+            patchDoc.ApplyTo(poiPatch, ModelState);
 
             if (!ModelState.IsValid)
             {
                 return BadRequest(ModelState);
             }
 
-            if(pointOfInterestToPatch.Description == pointOfInterestToPatch.Name)
+            if(poiPatch.Description == poiPatch.Name)
             {
                 ModelState.AddModelError("Description", "The provided description should be different from the name");
             }
 
-            TryValidateModel(pointOfInterestToPatch);
+            TryValidateModel(poiPatch);
 
             if (!ModelState.IsValid)
             {
                 return BadRequest(ModelState);
             }
 
-            pointOfInterestFromStore.Name = pointOfInterestToPatch.Name;
-            pointOfInterestFromStore.Description = pointOfInterestToPatch.Description;
+            _mapper.Map(poiPatch, poiEntity);
+
+            if (!_cityInfoRepository.Save())
+            {
+                return StatusCode(500, "A problem happened while handling request");
+            }
 
             return NoContent();
         }
