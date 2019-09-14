@@ -1,0 +1,544 @@
+Add env vars, migrations and seeding the db
+# Please enter the commit message for your changes. Lines starting
+# with '#' will be ignored, and an empty message aborts the commit.
+#
+# On branch master
+# Your branch is based on 'origin/master', but the upstream is gone.
+#   (use "git branch --unset-upstream" to fixup)
+#
+# Changes to be committed:
+#	modified:   .gitignore
+#	modified:   CityInfo.API.csproj
+#	new file:   CityInfoContextExtensions.cs
+#	modified:   Entities/CityInfoContext.cs
+#	modified:   Entities/PointOfInterest.cs
+#	new file:   Migrations/20190914173427_CityInfoDBInitialMigration.Designer.cs
+#	new file:   Migrations/20190914173427_CityInfoDBInitialMigration.cs
+#	new file:   Migrations/20190914174349_CityInfoDBAddPOIDescription.Designer.cs
+#	new file:   Migrations/20190914174349_CityInfoDBAddPOIDescription.cs
+#	new file:   Migrations/CityInfoContextModelSnapshot.cs
+#	modified:   Startup.cs
+#
+# ------------------------ >8 ------------------------
+# Do not modify or remove the line above.
+# Everything below it will be ignored.
+diff --git a/.gitignore b/.gitignore
+index 4ce6fdd..0832a00 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -337,4 +337,6 @@ ASALocalRun/
+ .localhistory/
+ 
+ # BeatPulse healthcheck temp database
+-healthchecksdb
+\ No newline at end of file
++healthchecksdb
++
++appsettings.json
+\ No newline at end of file
+diff --git a/CityInfo.API.csproj b/CityInfo.API.csproj
+index 19ea497..5e5aac8 100644
+--- a/CityInfo.API.csproj
++++ b/CityInfo.API.csproj
+@@ -14,6 +14,10 @@
+     <PackageReference Include="Microsoft.AspNetCore.Razor.Design" Version="2.1.2" PrivateAssets="All" />
+     <PackageReference Include="Microsoft.EntityFrameworkCore.Abstractions" Version="2.1.11" />
+     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="2.1.11" />
++    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="2.1.11">
++      <PrivateAssets>all</PrivateAssets>
++      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
++    </PackageReference>
+     <PackageReference Include="NLog.Extensions.Logging" Version="1.5.4" />
+   </ItemGroup>
+ 
+diff --git a/CityInfoContextExtensions.cs b/CityInfoContextExtensions.cs
+new file mode 100644
+index 0000000..ecca1a7
+--- /dev/null
++++ b/CityInfoContextExtensions.cs
+@@ -0,0 +1,82 @@
++﻿using CityInfo.API.Entities;
++using System;
++using System.Collections.Generic;
++using System.Linq;
++using System.Threading.Tasks;
++
++namespace CityInfo.API
++{
++    public static class CityInfoContextExtensions
++    {
++        public static void EnsureSeedDataForContext(this CityInfoContext context)
++        { 
++            if (context.Cities.Any())
++            {
++                return;
++            }
++
++            var cities = new List<City>()
++            {
++                new City()
++                {
++                    Name = "New York City",
++                    Description = "The one with that big park.",
++                    PointsOfInterest = new List<PointOfInterest>()
++                    {
++                        new PointOfInterest()
++                        {
++                            Name = "Central Park",
++                            Description = "The most visited urban park in the United States"
++                        },
++                        new PointOfInterest()
++                        {
++                            Name = "Empire State Building",
++                            Description = "A 102-story skyscraper located in Midtown Manhattan"
++                        }
++                    }
++                },
++
++                new City()
++                {
++                    Name = "Antwerp",
++                    Description = "The one with the cathedral that was never really finished.",
++                    PointsOfInterest = new List<PointOfInterest>()
++                    {
++                        new PointOfInterest()
++                        {
++                            Name = "Cathedral of Our Lady",
++                            Description = "A Gothic style cathedral, conceived by architects Jan and Pieter Appelmans."
++                        },
++                        new PointOfInterest()
++                        {
++                            Name = "Antwerp Central Station",
++                            Description  = "The finest example of railway architecture in Belgium"
++                        }
++                    }
++                },
++
++                new City()
++                {
++                    Name = "Paris",
++                    Description = "The one with that big tower.",
++                    PointsOfInterest = new List<PointOfInterest>()
++                    {
++                        new PointOfInterest()
++                        {
++                            Name = "Eiffel Tower",
++                            Description = "A wrought iron lattice tower on the champ de Mars, named after engineer Gustave Eiffel",
++                        },
++                        new PointOfInterest()
++                        {
++                            Name = "The Louvre",
++                            Description = "The world's largest museum"
++                        }
++                    }
++                }
++            };
++
++            context.Cities.AddRange(cities);
++            context.SaveChanges();
++        }
++    }
++}
+diff --git a/Entities/CityInfoContext.cs b/Entities/CityInfoContext.cs
+index 1314423..1a1f8ed 100644
+--- a/Entities/CityInfoContext.cs
++++ b/Entities/CityInfoContext.cs
+@@ -10,7 +10,8 @@ namespace CityInfo.API.Entities
+     {
+         public CityInfoContext(DbContextOptions<CityInfoContext> options) : base(options)
+         {
+-            Database.EnsureCreated(); // will check if DB exists, if not it will create
++            // Database.EnsureCreated(); will check if DB exists, if not it will create
++            Database.Migrate(); // Will run migration
+         }
+ 
+         public DbSet<City> Cities { get; set; }
+diff --git a/Entities/PointOfInterest.cs b/Entities/PointOfInterest.cs
+index 3a6822e..ed1f023 100644
+--- a/Entities/PointOfInterest.cs
++++ b/Entities/PointOfInterest.cs
+@@ -17,6 +17,9 @@ namespace CityInfo.API.Entities
+         [MaxLength(50)]
+         public string Name { get; set; }
+ 
++        [MaxLength(200)]
++        public string Description { get; set; }
++
+         // [ForeignKey("CityId")] Optional
+         public City City { get; set; }
+         public int CityId { get; set; }
+diff --git a/Migrations/20190914173427_CityInfoDBInitialMigration.Designer.cs b/Migrations/20190914173427_CityInfoDBInitialMigration.Designer.cs
+new file mode 100644
+index 0000000..0a833f6
+--- /dev/null
++++ b/Migrations/20190914173427_CityInfoDBInitialMigration.Designer.cs
+@@ -0,0 +1,70 @@
++﻿// <auto-generated />
++using CityInfo.API.Entities;
++using Microsoft.EntityFrameworkCore;
++using Microsoft.EntityFrameworkCore.Infrastructure;
++using Microsoft.EntityFrameworkCore.Metadata;
++using Microsoft.EntityFrameworkCore.Migrations;
++using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
++
++namespace CityInfo.API.Migrations
++{
++    [DbContext(typeof(CityInfoContext))]
++    [Migration("20190914173427_CityInfoDBInitialMigration")]
++    partial class CityInfoDBInitialMigration
++    {
++        protected override void BuildTargetModel(ModelBuilder modelBuilder)
++        {
++#pragma warning disable 612, 618
++            modelBuilder
++                .HasAnnotation("ProductVersion", "2.1.11-servicing-32099")
++                .HasAnnotation("Relational:MaxIdentifierLength", 128)
++                .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn);
++
++            modelBuilder.Entity("CityInfo.API.Entities.City", b =>
++                {
++                    b.Property<int>("Id")
++                        .ValueGeneratedOnAdd()
++                        .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn);
++
++                    b.Property<string>("Description")
++                        .HasMaxLength(200);
++
++                    b.Property<string>("Name")
++                        .IsRequired()
++                        .HasMaxLength(50);
++
++                    b.HasKey("Id");
++
++                    b.ToTable("Cities");
++                });
++
++            modelBuilder.Entity("CityInfo.API.Entities.PointOfInterest", b =>
++                {
++                    b.Property<int>("Id")
++                        .ValueGeneratedOnAdd()
++                        .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn);
++
++                    b.Property<int>("CityId");
++
++                    b.Property<string>("Name")
++                        .IsRequired()
++                        .HasMaxLength(50);
++
++                    b.HasKey("Id");
++
++                    b.HasIndex("CityId");
++
++                    b.ToTable("PointOfInterest");
++                });
++
++            modelBuilder.Entity("CityInfo.API.Entities.PointOfInterest", b =>
++                {
++                    b.HasOne("CityInfo.API.Entities.City", "City")
++                        .WithMany("PointsOfInterest")
++                        .HasForeignKey("CityId")
++                        .OnDelete(DeleteBehavior.Cascade);
++                });
++#pragma warning restore 612, 618
++        }
++    }
++}
+diff --git a/Migrations/20190914173427_CityInfoDBInitialMigration.cs b/Migrations/20190914173427_CityInfoDBInitialMigration.cs
+new file mode 100644
+index 0000000..555e24f
+--- /dev/null
++++ b/Migrations/20190914173427_CityInfoDBInitialMigration.cs
+@@ -0,0 +1,59 @@
++﻿using Microsoft.EntityFrameworkCore.Metadata;
++using Microsoft.EntityFrameworkCore.Migrations;
++
++namespace CityInfo.API.Migrations
++{
++    public partial class CityInfoDBInitialMigration : Migration
++    {
++        protected override void Up(MigrationBuilder migrationBuilder)
++        {
++            migrationBuilder.CreateTable(
++                name: "Cities",
++                columns: table => new
++                {
++                    Id = table.Column<int>(nullable: false)
++                        .Annotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn),
++                    Name = table.Column<string>(maxLength: 50, nullable: false),
++                    Description = table.Column<string>(maxLength: 200, nullable: true)
++                },
++                constraints: table =>
++                {
++                    table.PrimaryKey("PK_Cities", x => x.Id);
++                });
++
++            migrationBuilder.CreateTable(
++                name: "PointOfInterest",
++                columns: table => new
++                {
++                    Id = table.Column<int>(nullable: false)
++                        .Annotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn),
++                    Name = table.Column<string>(maxLength: 50, nullable: false),
++                    CityId = table.Column<int>(nullable: false)
++                },
++                constraints: table =>
++                {
++                    table.PrimaryKey("PK_PointOfInterest", x => x.Id);
++                    table.ForeignKey(
++                        name: "FK_PointOfInterest_Cities_CityId",
++                        column: x => x.CityId,
++                        principalTable: "Cities",
++                        principalColumn: "Id",
++                        onDelete: ReferentialAction.Cascade);
++                });
++
++            migrationBuilder.CreateIndex(
++                name: "IX_PointOfInterest_CityId",
++                table: "PointOfInterest",
++                column: "CityId");
++        }
++
++        protected override void Down(MigrationBuilder migrationBuilder)
++        {
++            migrationBuilder.DropTable(
++                name: "PointOfInterest");
++
++            migrationBuilder.DropTable(
++                name: "Cities");
++        }
++    }
++}
+diff --git a/Migrations/20190914174349_CityInfoDBAddPOIDescription.Designer.cs b/Migrations/20190914174349_CityInfoDBAddPOIDescription.Designer.cs
+new file mode 100644
+index 0000000..b479998
+--- /dev/null
++++ b/Migrations/20190914174349_CityInfoDBAddPOIDescription.Designer.cs
+@@ -0,0 +1,73 @@
++﻿// <auto-generated />
++using CityInfo.API.Entities;
++using Microsoft.EntityFrameworkCore;
++using Microsoft.EntityFrameworkCore.Infrastructure;
++using Microsoft.EntityFrameworkCore.Metadata;
++using Microsoft.EntityFrameworkCore.Migrations;
++using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
++
++namespace CityInfo.API.Migrations
++{
++    [DbContext(typeof(CityInfoContext))]
++    [Migration("20190914174349_CityInfoDBAddPOIDescription")]
++    partial class CityInfoDBAddPOIDescription
++    {
++        protected override void BuildTargetModel(ModelBuilder modelBuilder)
++        {
++#pragma warning disable 612, 618
++            modelBuilder
++                .HasAnnotation("ProductVersion", "2.1.11-servicing-32099")
++                .HasAnnotation("Relational:MaxIdentifierLength", 128)
++                .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn);
++
++            modelBuilder.Entity("CityInfo.API.Entities.City", b =>
++                {
++                    b.Property<int>("Id")
++                        .ValueGeneratedOnAdd()
++                        .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn);
++
++                    b.Property<string>("Description")
++                        .HasMaxLength(200);
++
++                    b.Property<string>("Name")
++                        .IsRequired()
++                        .HasMaxLength(50);
++
++                    b.HasKey("Id");
++
++                    b.ToTable("Cities");
++                });
++
++            modelBuilder.Entity("CityInfo.API.Entities.PointOfInterest", b =>
++                {
++                    b.Property<int>("Id")
++                        .ValueGeneratedOnAdd()
++                        .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn);
++
++                    b.Property<int>("CityId");
++
++                    b.Property<string>("Description")
++                        .HasMaxLength(200);
++
++                    b.Property<string>("Name")
++                        .IsRequired()
++                        .HasMaxLength(50);
++
++                    b.HasKey("Id");
++
++                    b.HasIndex("CityId");
++
++                    b.ToTable("PointOfInterest");
++                });
++
++            modelBuilder.Entity("CityInfo.API.Entities.PointOfInterest", b =>
++                {
++                    b.HasOne("CityInfo.API.Entities.City", "City")
++                        .WithMany("PointsOfInterest")
++                        .HasForeignKey("CityId")
++                        .OnDelete(DeleteBehavior.Cascade);
++                });
++#pragma warning restore 612, 618
++        }
++    }
++}
+diff --git a/Migrations/20190914174349_CityInfoDBAddPOIDescription.cs b/Migrations/20190914174349_CityInfoDBAddPOIDescription.cs
+new file mode 100644
+index 0000000..114893e
+--- /dev/null
++++ b/Migrations/20190914174349_CityInfoDBAddPOIDescription.cs
+@@ -0,0 +1,23 @@
++﻿using Microsoft.EntityFrameworkCore.Migrations;
++
++namespace CityInfo.API.Migrations
++{
++    public partial class CityInfoDBAddPOIDescription : Migration
++    {
++        protected override void Up(MigrationBuilder migrationBuilder)
++        {
++            migrationBuilder.AddColumn<string>(
++                name: "Description",
++                table: "PointOfInterest",
++                maxLength: 200,
++                nullable: true);
++        }
++
++        protected override void Down(MigrationBuilder migrationBuilder)
++        {
++            migrationBuilder.DropColumn(
++                name: "Description",
++                table: "PointOfInterest");
++        }
++    }
++}
+diff --git a/Migrations/CityInfoContextModelSnapshot.cs b/Migrations/CityInfoContextModelSnapshot.cs
+new file mode 100644
+index 0000000..6772079
+--- /dev/null
++++ b/Migrations/CityInfoContextModelSnapshot.cs
+@@ -0,0 +1,71 @@
++﻿// <auto-generated />
++using CityInfo.API.Entities;
++using Microsoft.EntityFrameworkCore;
++using Microsoft.EntityFrameworkCore.Infrastructure;
++using Microsoft.EntityFrameworkCore.Metadata;
++using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
++
++namespace CityInfo.API.Migrations
++{
++    [DbContext(typeof(CityInfoContext))]
++    partial class CityInfoContextModelSnapshot : ModelSnapshot
++    {
++        protected override void BuildModel(ModelBuilder modelBuilder)
++        {
++#pragma warning disable 612, 618
++            modelBuilder
++                .HasAnnotation("ProductVersion", "2.1.11-servicing-32099")
++                .HasAnnotation("Relational:MaxIdentifierLength", 128)
++                .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn);
++
++            modelBuilder.Entity("CityInfo.API.Entities.City", b =>
++                {
++                    b.Property<int>("Id")
++                        .ValueGeneratedOnAdd()
++                        .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn);
++
++                    b.Property<string>("Description")
++                        .HasMaxLength(200);
++
++                    b.Property<string>("Name")
++                        .IsRequired()
++                        .HasMaxLength(50);
++
++                    b.HasKey("Id");
++
++                    b.ToTable("Cities");
++                });
++
++            modelBuilder.Entity("CityInfo.API.Entities.PointOfInterest", b =>
++                {
++                    b.Property<int>("Id")
++                        .ValueGeneratedOnAdd()
++                        .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn);
++
++                    b.Property<int>("CityId");
++
++                    b.Property<string>("Description")
++                        .HasMaxLength(200);
++
++                    b.Property<string>("Name")
++                        .IsRequired()
++                        .HasMaxLength(50);
++
++                    b.HasKey("Id");
++
++                    b.HasIndex("CityId");
++
++                    b.ToTable("PointOfInterest");
++                });
++
++            modelBuilder.Entity("CityInfo.API.Entities.PointOfInterest", b =>
++                {
++                    b.HasOne("CityInfo.API.Entities.City", "City")
++                        .WithMany("PointsOfInterest")
++                        .HasForeignKey("CityId")
++                        .OnDelete(DeleteBehavior.Cascade);
++                });
++#pragma warning restore 612, 618
++        }
++    }
++}
+diff --git a/Startup.cs b/Startup.cs
+index 07c764e..45a5c8d 100644
+--- a/Startup.cs
++++ b/Startup.cs
+@@ -13,11 +13,19 @@ using NLog.Extensions.Logging;
+ using CityInfo.API.Services;
+ using CityInfo.API.Entities;
+ using Microsoft.EntityFrameworkCore;
++using Microsoft.Extensions.Configuration;
+ 
+ namespace CityInfo.API
+ {
+     public class Startup
+     {
++
++        public static IConfiguration Configuration { get; private set; }
++
++        public Startup(IConfiguration configuration)
++        {
++            Configuration = configuration;
++        }
+         // This method gets called by the runtime. Use this method to add services to the container.
+         // For more information on how to configure your application, visit https://go.microsoft.com/fwlink/?LinkID=398940
+         public void ConfigureServices(IServiceCollection services)
+@@ -35,13 +43,13 @@ namespace CityInfo.API
+             //        }
+             //});
+ 
+-            var connectionString = @"Server=(localdb)\mssqllocaldb;Database=CityInfoDB;Trusted_Connection=True;";
++            var connectionString = Startup.Configuration["connectionStrings:cityInfoDBConnectionString"];
+             services.AddDbContext<CityInfoContext>(o => o.UseSqlServer(connectionString));
+ 
+         }
+ 
+         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
+-        public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory)
++        public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory, CityInfoContext cityInfoContext)
+         {
+             loggerFactory.AddConsole();
+ 
+@@ -58,6 +66,8 @@ namespace CityInfo.API
+                 app.UseExceptionHandler();
+             }
+ 
++            cityInfoContext.EnsureSeedDataForContext();
++
+             app.UseStatusCodePages();
+ 
+             app.UseMvc();
