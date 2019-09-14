@@ -11,6 +11,8 @@ using Microsoft.AspNetCore.Mvc.Formatters;
 using Microsoft.Extensions.Logging;
 using NLog.Extensions.Logging;
 using CityInfo.API.Services;
+using CityInfo.API.Entities;
+using Microsoft.EntityFrameworkCore;
 
 namespace CityInfo.API
 {
@@ -20,11 +22,9 @@ namespace CityInfo.API
         // For more information on how to configure your application, visit https://go.microsoft.com/fwlink/?LinkID=398940
         public void ConfigureServices(IServiceCollection services)
         {
-            services.AddMvc();
-
-            // This will add Xml representation as a response option
-            //.AddMvcOptions(o => o.OutputFormatters.Add(
-            //    new XmlDataContractSerializerOutputFormatter()));
+            services.AddMvc()
+              .AddMvcOptions(o => o.OutputFormatters.Add(
+                  new XmlDataContractSerializerOutputFormatter())); // will add xml as option
 
             // If you want different serialization in response
             //    .AddJsonOptions(o => {
@@ -34,6 +34,9 @@ namespace CityInfo.API
             //            castedResolver.NamingStrategy = null;
             //        }
             //});
+
+            var connectionString = @"Server=(localdb)\mssqllocaldb;Database=CityInfoDB;Trusted_Connection=True;";
+            services.AddDbContext<CityInfoContext>(o => o.UseSqlServer(connectionString));
 
         }
 
